@@ -35,7 +35,9 @@ infra:
 	kubectl wait --for=condition=Ready pod -l app=minio -n go-app --timeout=90s
 	@echo "Configure MinIO"
 	make -C $(SERVICES_DIR)/stream-service init-minio
-
+	@echo "Deploy KEDA"
+	make -C $(SERVICES_DIR)/transcoder-service keda-deploy
+	
 apps:
 	@echo "Deploy identity-service"
 	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/base/.
@@ -49,6 +51,7 @@ apps:
 	kubectl wait --for=condition=Available deployment/stream-service -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy transcoder-service"
 	kubectl apply -f $(SERVICES_DIR)/transcoder-service/deploy/k8s/transcoder/.
+	kubectl apply -f $(SERVICES_DIR)/transcoder-service/deploy/k8s/keda/.
 	@echo "Wait transcoder-service..."
 	kubectl wait --for=condition=Available deployment/transcoder-service -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"

@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all infra apps clean status
+.PHONY: all render apply-configmaps infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -13,12 +13,20 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome infra apps status
+all: wellcome render infra apps status
 
 wellcome:
 	@echo "$$LOGO"
 
-infra:
+render:
+	@echo "Rendering ConfigMaps from .env"
+	./scripts/render-env.sh
+
+apply-configmaps: render
+	@echo "Apply ConfigMaps (from .env)"
+	kubectl apply -f deploy/generated/configmaps/.
+
+infra: apply-configmaps
 	@echo "Create namespace"
 	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@echo "Install cert-manager"
@@ -38,7 +46,7 @@ infra:
 	@echo "Deploy KEDA"
 	make -C $(SERVICES_DIR)/transcoder-service keda-deploy
 	
-apps:
+apps: apply-configmaps
 	@echo "Deploy identity-service"
 	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/base/.
 	@echo "HPA"
@@ -63,6 +71,30 @@ apps:
 status:
 	kubectl get pods -n $(NAMESPACE)
 	kubectl get ingress -n $(NAMESPACE)
+
+# ------------------------------------------------------------------
+# Backup / Restore (стратегия restore: пережить kind delete)
+# ------------------------------------------------------------------
+backup:
+	./scripts/backup.sh
+
+restore:
+	./scripts/restore.sh
+
+# ------------------------------------------------------------------
+# Web-frontend: сборка с build-args из единого .env
+# ------------------------------------------------------------------
+build-web:
+	@echo "Building web-frontend with URLs from .env"
+	set -a && . ./.env && set +a; \
+	docker build \
+		--build-arg VITE_API_URL=$$VITE_API_URL \
+		--build-arg VITE_WS_URL=$$VITE_WS_URL \
+		--build-arg VITE_HLS_URL=$$VITE_HLS_URL \
+		--build-arg VITE_STORAGE_URL=$$VITE_STORAGE_URL \
+		-t xomrkob/web-frontend:latest \
+		$(SERVICES_DIR)/web-frontend
+	docker push xomrkob/web-frontend:latest
 
 uninstall:
 	@echo "Deleting all namespace: $(NAMESPACE)"

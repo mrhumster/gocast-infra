@@ -1,3 +1,4 @@
-services/
+services/*
+!services/shared/
 .env
 deploy/generated/

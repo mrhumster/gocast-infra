@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render apply-configmaps apply-ingresses infra apps clean status backup restore build-web
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -22,17 +22,22 @@ render:
 	@echo "Rendering ConfigMaps from .env"
 	./scripts/render-env.sh
 
-apply-configmaps: render
+ensure-namespace:
+	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+
+apply-configmaps:
 	@echo "Apply ConfigMaps (from .env)"
 	kubectl apply -f deploy/generated/configmaps/.
 
-apply-ingresses: render
+apply-ingresses:
 	@echo "Apply Ingresses (from .env)"
 	kubectl apply -f deploy/generated/ingresses/.
 
-infra: apply-configmaps apply-ingresses
-	@echo "Create namespace"
-	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+apply-recovery:
+	@echo "Apply kindnet recovery DaemonSet (auto-heal pod-network flake)"
+	kubectl apply -f deploy/k8s/kindnet-recovery/.
+
+infra: ensure-namespace apply-recovery
 	@echo "Install cert-manager"
 	make -C $(SERVICES_DIR)/identity-service deploy-certmanager
 	@echo "Install ingress controller"
@@ -49,8 +54,11 @@ infra: apply-configmaps apply-ingresses
 	make -C $(SERVICES_DIR)/stream-service init-minio
 	@echo "Deploy KEDA"
 	make -C $(SERVICES_DIR)/transcoder-service keda-deploy
-	
-apps: apply-configmaps apply-ingresses
+	@echo "Apply gRPC mTLS certificates (requires ca-issuer)"
+	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/grpc-mtls/grpc-certificates.yaml
+	kubectl -n $(NAMESPACE) wait --for=condition=Ready certificate grpc-identity-tls grpc-stream-tls grpc-thumbnail-tls grpc-transcoder-tls --timeout=120s
+
+apps: ensure-namespace apply-configmaps apply-ingresses
 	@echo "Deploy identity-service"
 	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/base/.
 	@echo "HPA"
@@ -66,6 +74,11 @@ apps: apply-configmaps apply-ingresses
 	kubectl apply -f $(SERVICES_DIR)/transcoder-service/deploy/k8s/keda/.
 	@echo "Wait transcoder-service..."
 	kubectl wait --for=condition=Available deployment/transcoder-service -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy thumbnail-service"
+	kubectl apply -f $(SERVICES_DIR)/thumbnail-service/deploy/k8s/thumbnail/.
+	kubectl apply -f $(SERVICES_DIR)/thumbnail-service/deploy/k8s/keda/.
+	@echo "Wait thumbnail-service..."
+	kubectl wait --for=condition=Available deployment/thumbnail-service -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"
 	kubectl apply -f $(SERVICES_DIR)/web-frontend/k8s/.
 	@echo "Wait web-frontend..."

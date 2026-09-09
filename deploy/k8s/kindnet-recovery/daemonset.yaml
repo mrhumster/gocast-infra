@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kindnet-recovery
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kindnet-recovery
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kindnet-recovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kindnet-recovery
+subjects:
+  - kind: ServiceAccount
+    name: kindnet-recovery
+    namespace: kube-system
+---
+# Kindnet recovery daemon: detects broken pod-to-pod TCP (WSL2/Docker Desktop
+# kindnet veth flake: DNS OK, TCP FAIL) and heals it by recycling the kindnet
+# CNI pod and the affected postgres/redis pods, mirroring the documented
+# manual procedure. Runs on every node; single-node kind => one replica.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kindnet-recovery
+  namespace: kube-system
+  labels:
+    app: kindnet-recovery
+spec:
+  selector:
+    matchLabels:
+      app: kindnet-recovery
+  template:
+    metadata:
+      labels:
+        app: kindnet-recovery
+    spec:
+      serviceAccountName: kindnet-recovery
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: recovery
+          image: alpine/k8s:1.34.3
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              PG_SVC="postgresql.go-app.svc.cluster.local:5432"
+              REDIS_SVC="casbin-redis-master.go-app.svc.cluster.local:6379"
+              DELAY=45
+              FAILS=0
+              echo "kindnet-recovery started"
+              while true; do
+                PG=1; REDIS=1
+                if nc -z -w 3 $(echo $PG_SVC | tr ':' ' ') 2>/dev/null; then PG=0; fi
+                if nc -z -w 3 $(echo $REDIS_SVC | tr ':' ' ') 2>/dev/null; then REDIS=0; fi
+                KINDDOWN=0
+                if ! kubectl -n kube-system get pod -l k8s-app=kindnet -o name 2>/dev/null | grep -q kindnet; then KINDDOWN=1; fi
+
+                if [ "$PG" = "1" ] && [ "$REDIS" = "1" ]; then
+                  FAILS=$((FAILS + 1))
+                  echo "$(date -u +%T) FAIL pg=$PG redis=$REDIS kindnet_down=$KINDDOWN (fails=$FAILS)"
+                  if [ "$FAILS" -ge 3 ]; then
+                    echo "$(date -u +%T) pod-network broken — recycling kindnet + pg/redis"
+                    kubectl -n kube-system delete pod -l k8s-app=kindnet --ignore-not-found || true
+                    sleep 20
+                    kubectl -n go-app delete pod postgresql-0 --ignore-not-found || true
+                    kubectl -n go-app delete pod casbin-redis-master-0 --ignore-not-found || true
+                    sleep 45
+                    FAILS=0
+                  fi
+                elif [ "$KINDDOWN" = "1" ]; then
+                  echo "$(date -u +%T) kindnet pod missing — recycling kindnet"
+                  kubectl -n kube-system delete pod -l k8s-app=kindnet --ignore-not-found || true
+                  sleep 30
+                  FAILS=0
+                else
+                  FAILS=0
+                fi
+                sleep $DELAY
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      restartPolicy: Always

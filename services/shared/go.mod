@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/hibiken/asynq v0.26.0
 	github.com/redis/go-redis/v9 v9.14.1
+	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.79.3
 )
 
@@ -14,6 +15,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/time v0.14.0 // indirect

@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render apply-configmaps infra apps clean status backup restore build-web
+.PHONY: all render apply-configmaps apply-ingresses infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -26,7 +26,11 @@ apply-configmaps: render
 	@echo "Apply ConfigMaps (from .env)"
 	kubectl apply -f deploy/generated/configmaps/.
 
-infra: apply-configmaps
+apply-ingresses: render
+	@echo "Apply Ingresses (from .env)"
+	kubectl apply -f deploy/generated/ingresses/.
+
+infra: apply-configmaps apply-ingresses
 	@echo "Create namespace"
 	kubectl create namespace $(NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
 	@echo "Install cert-manager"
@@ -46,7 +50,7 @@ infra: apply-configmaps
 	@echo "Deploy KEDA"
 	make -C $(SERVICES_DIR)/transcoder-service keda-deploy
 	
-apps: apply-configmaps
+apps: apply-configmaps apply-ingresses
 	@echo "Deploy identity-service"
 	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/base/.
 	@echo "HPA"

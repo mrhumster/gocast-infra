@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate-identity
+  namespace: go-app
+  labels:
+    app: db-migrate
+    target: identity
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: db-migrate
+        target: identity
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migrate-identity
+          image: xomrkob/db-migrate:latest
+          imagePullPolicy: Always
+          args: ["-target=identity"]
+          envFrom:
+            - configMapRef:
+                name: identity-service-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_PASS

@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus infra apps clean status backup restore build-web
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus apply-db-migrate infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -13,7 +13,7 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome render infra apps apply-prometheus status
+all: wellcome render infra apply-db-migrate apps apply-prometheus status
 
 wellcome:
 	@echo "$$LOGO"
@@ -41,6 +41,13 @@ apply-prometheus:
 	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"
 	kubectl apply -f deploy/k8s/prometheus/.
 	@echo "Access: kubectl -n $(NAMESPACE) port-forward svc/prometheus-server 9090:9090"
+
+apply-db-migrate:
+	@echo "Run DB migrations (identity + stream)"
+	kubectl apply -f $(SERVICES_DIR)/db-migrate/deploy/k8s/.
+	kubectl wait --for=condition=complete job/db-migrate-identity -n $(NAMESPACE) --timeout=180s
+	kubectl wait --for=condition=complete job/db-migrate-stream -n $(NAMESPACE) --timeout=180s
+	@echo "DB migrations done"
 
 infra: ensure-namespace apply-recovery
 	@echo "Install cert-manager"

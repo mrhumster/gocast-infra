@@ -25,6 +25,7 @@ type Server struct {
 	GRPCTLSKeyFile    string
 	GRPCTLSCAFile     string
 	GRPCTLSEnabled    bool
+	MetricsAddr       string
 }
 
 type Redis struct {
@@ -85,6 +86,7 @@ func LoadConfig() (*Config, error) {
 			GRPCTLSKeyFile:    os.Getenv("GRPC_TLS_KEY"),
 			GRPCTLSCAFile:     os.Getenv("GRPC_TLS_CA"),
 			GRPCTLSEnabled:    getBool("GRPC_TLS_ENABLED"),
+			MetricsAddr:       getEnv("METRICS_ADDR", ""),
 		},
 		Worker: Worker{
 			Concurrency:     int(concurrency),

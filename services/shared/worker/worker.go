@@ -11,9 +11,11 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -32,6 +34,7 @@ type Options struct {
 	ShutdownTimeout time.Duration  // Grace period for in-flight tasks on shutdown
 	Queues          map[string]int // Asynq queue -> priority map
 	ErrorReporter   ErrorReporter  // Optional; default no-op
+	MetricsAddr     string         // Optional; if set, expose Prometheus /metrics on this addr
 }
 
 // NewAsynqServer builds an *asynq.Server, first verifying Redis
@@ -66,5 +69,24 @@ func NewAsynqServer(o Options) (*asynq.Server, error) {
 		}),
 	}
 
+	if o.MetricsAddr != "" {
+		startMetricsServer(o.MetricsAddr)
+	}
+
 	return asynq.NewServer(redisOpt, cfg), nil
+}
+
+// startMetricsServer exposes Prometheus metrics on the given address in a
+// background goroutine. The process-wide default registry already includes
+// the Go and process collectors.
+func startMetricsServer(addr string) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+	srv := &http.Server{Addr: addr, Handler: mux}
+	go func() {
+		slog.Info("metrics server started", "addr", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("metrics server failed", "addr", addr, "error", err)
+		}
+	}()
 }

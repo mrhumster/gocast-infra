@@ -166,10 +166,12 @@ cm minio-config \
 
 cm transcoder-service-config \
   "WORKER_CONCURRENCY=1" \
-  "WORKER_SHUTDOWN_TIMEOUT=50m"
+  "WORKER_SHUTDOWN_TIMEOUT=50m" \
+  "METRICS_ADDR=${METRICS_ADDR}"
 
 cm thumbnail-service-config \
   "WORKER_CONCURRENCY=1" \
-  "WORKER_SHUTDOWN_TIMEOUT=50m"
+  "WORKER_SHUTDOWN_TIMEOUT=50m" \
+  "METRICS_ADDR=${METRICS_ADDR}"
 
 echo "Done. Apply with: kubectl apply -f ${OUT_DIR}/"

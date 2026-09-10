@@ -28,7 +28,9 @@ services/db-migrate/
 ├── Makefile                 # build / push
 ├── migrations/
 │   ├── identity/0001_baseline.{up,down}.sql
-│   └── stream/0001_baseline.{up,down}.sql
+│   └── stream/
+│       ├── 0001_baseline.{up,down}.sql
+│       └── 0002_processing_tasks_array.{up,down}.sql
 └── deploy/k8s/
     ├── job-identity.yaml    # K8s Job (envFrom identity-service-config)
     └── job-stream.yaml      # K8s Job (envFrom stream-service-config)
@@ -37,6 +39,10 @@ services/db-migrate/
 `0001_baseline` is an idempotent snapshot of the production schema
 (`CREATE TABLE/INDEX IF NOT EXISTS`, `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`):
 no-op on live DBs, full creation on a fresh one.
+
+`0002_processing_tasks_array` converts the legacy single-object `streams.processing`
+JSON to the task array shape (`[{"task_type": "transcode", ...}]`), leaving already-array
+values untouched. The down migration is lossy (keeps only the first task).
 
 Migration SQL is compiled into the image with `//go:embed migrations/<target>`, so adding a
 migration file requires rebuilding the image.

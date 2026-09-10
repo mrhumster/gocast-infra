@@ -19,7 +19,8 @@ plus Go microservices (identity, stream, transcoder, thumbnail) deployed on a ki
 │   ├── generated/ingresses/    # Ingresses rendered from DOMAIN_* envs (gitignored)
 │   ├── backups/                # backups from `make backup` (gitignored)
 │   └── k8s/
-│       ├── prometheus/         # lightweight Prometheus server (no Grafana/PVC)
+│       ├── prometheus/         # lightweight Prometheus server (no PVC)
+│       ├── grafana/            # Grafana UI (provisioned datasource + GoCast dashboards)
 │       └── kindnet-recovery/   # DaemonSet that auto-heals kindnet/pod-network flakiness
 └── services/
     ├── identity-service/    # Go: auth (JWT), users, RBAC (Casbin), gRPC permissions
@@ -76,8 +77,8 @@ cp .env.example .env            # then edit .env (domains, ADMIN_EMAIL)
 If service images already exist in Docker Hub — deploy right away:
 
 ```bash
-# 3. Deploy infrastructure + apps + migrations + prometheus
-make all                        # = render + infra + apply-db-migrate + apps + apply-prometheus + status
+# 3. Deploy infrastructure + apps + migrations + prometheus + grafana
+make all                        # = render + infra + apply-db-migrate + apps + apply-prometheus + apply-grafana + status
 ```
 
 If images don't exist (yet) or frontend URLs changed — build and push first:
@@ -98,6 +99,7 @@ make -C services/identity-service build push    # and the same for stream/transc
 - `apps` — deploy identity/stream/transcoder/thumbnail/web-frontend (workers autoscale to 0
   via KEDA when idle — that is normal);
 - `apply-prometheus` — deploy the lightweight Prometheus server;
+- `apply-grafana` — deploy Grafana (provisioned Prometheus datasource + GoCast dashboards);
 - `status` — print `kubectl get pods` + `kubectl get ingress`.
 
 ## Configuration (.env)
@@ -123,6 +125,7 @@ together with the cluster, they must be restored manually (see "Secrets inventor
 | `API_DOMAIN` | API/ingress domain (stream, identity) | `api.example.com` |
 | `STORAGE_DOMAIN` | MinIO API domain | `storage.example.com` |
 | `CONSOLE_DOMAIN` | MinIO Console domain | `console.storage.example.com` |
+| `GRAFANA_DOMAIN` | Grafana domain (default `grafana.<DOMAIN>`) | `grafana.example.com` |
 | `ADMIN_EMAIL` | Bootstrap admin (identity sets role=admin on start) | `me@xomrkob.ru` |
 | `DB_HOST` / `DB_PORT` / `DB_NAME` | PostgreSQL | `postgresql`/`5432`/`database1` |
 | `MINIO_ENDPOINT` / `MINIO_BUCKET` / `MINIO_REGION` | MinIO | `minio:9000`/`go-app-bucket`/`us-east-1` |
@@ -178,10 +181,33 @@ schemas via AutoMigrate on dedicated test databases. Details in
   metrics in `services/shared/metrics`.
 - K8s pod-discovery is annotation-based (`prometheus.io/scrape|port|path`); the Prometheus
   server in `deploy/k8s/prometheus/` (job `go-app-pods`, role=pod) also scrapes MinIO
-  (`minio:9000/minio/prometheus/metrics`) and itself. Retention 24h, no PVC, no Grafana.
+  (`minio:9000/minio/prometheus/metrics`) and itself — and now Grafana (`:3000/metrics`).
+  Retention 24h, no PVC.
 - MinIO metric names are **not** `minio_*`: use `bucket_objects_count` (file count) and
   `bucket_usage_size` (bytes).
-- Access the UI: `kubectl -n go-app port-forward svc/prometheus-server 9090:9090`.
+- Prometheus UI: `kubectl -n go-app port-forward svc/prometheus-server 9090:9090`.
+
+## Grafana (dashboards)
+
+**Grafana 11.4** (`deploy/k8s/grafana/`, installed by `make apply-grafana`, part of `make all`)
+with a **provisioned** Prometheus datasource and 4 dashboards in the `GoCast` folder — no manual
+click-through setup:
+
+| Dashboard | What it shows |
+|---|---|
+| GoCast — HTTP & Latency | RED: request rate / latency / errors for identity & stream |
+| GoCast — Business Activity | logins, uploads, stream lifecycle, HLS serves |
+| GoCast — Workers (asynq) | processed/duration/inflight for thumbnail & transcoder tasks |
+| GoCast — MinIO Storage | files and bytes in the bucket (`bucket_objects_count`, `bucket_usage_size`) |
+
+- Provisioning: datasource config + dashboard provider are baked into ConfigMaps
+  (`grafana-provisioning-*`); the dashboard JSONs live in `deploy/k8s/grafana/dashboards/` and
+  are loaded as the `grafana-dashboards` ConfigMap into `/var/lib/grafana/dashboards`.
+- Access: `https://<GRAFANA_DOMAIN>` (ingress rendered from `.env`, default `grafana.<DOMAIN>`)
+  — add a hosts entry for it like the other subdomains. Login is the dev admin
+  `admin` / `GrafanaAdmin123` (from the committed `grafana-secret`).
+- Data store is an `emptyDir` — dashboards (provisioned) survive restarts, not user-made edits
+  made via `allowUiUpdates: true`; for the dev setup that is fine.
 
 ## Backup / restore (disaster recovery)
 
@@ -228,12 +254,13 @@ If they were changed/generated at runtime (not from git manifests), prepare them
 ## Useful commands
 
 ```bash
-make all            # full deploy: render + infra + apply-db-migrate + apps + apply-prometheus + status
+make all            # full deploy: render + infra + apply-db-migrate + apps + apply-prometheus + apply-grafana + status
 make render         # regenerate ConfigMaps + Ingresses from .env
 make infra          # infrastructure (ns, cert-manager, ingress, postgres, redis, minio, KEDA, mTLS, kindnet-recovery)
 make apply-db-migrate # run pending schema migrations for identity/stream
 make apps           # apps (identity, stream, transcoder, thumbnail, web-frontend)
 make apply-prometheus # deploy lightweight Prometheus (server already in deploy/k8s/prometheus/)
+make apply-grafana  # deploy Grafana with provisioned datasource + GoCast dashboards
 make status         # pods + ingress
 make backup         # pg_dump + mc mirror -> deploy/backups/<ts>/
 make build-web      # build and push web-frontend:latest (URLs from .env)

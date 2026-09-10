@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus apply-db-migrate infra apps clean status backup restore build-web
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -13,7 +13,7 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome render infra apply-db-migrate apps apply-prometheus status
+all: wellcome render infra apply-db-migrate apps apply-prometheus apply-grafana status
 
 wellcome:
 	@echo "$$LOGO"
@@ -41,6 +41,13 @@ apply-prometheus:
 	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"
 	kubectl apply -f deploy/k8s/prometheus/.
 	@echo "Access: kubectl -n $(NAMESPACE) port-forward svc/prometheus-server 9090:9090"
+
+apply-grafana: ensure-namespace apply-configmaps apply-ingresses
+	@echo "Apply Grafana (datasource -> prometheus-server, provisioned GoCast dashboards)"
+	kubectl apply -f deploy/k8s/grafana/configmap.yaml -f deploy/k8s/grafana/secret.yaml -f deploy/k8s/grafana/service.yaml -f deploy/k8s/grafana/deployment.yaml
+	kubectl create configmap grafana-dashboards -n $(NAMESPACE) --from-file=deploy/k8s/grafana/dashboards -o yaml --dry-run=client | kubectl apply -f -
+	kubectl rollout status deployment/grafana -n $(NAMESPACE) --timeout=180s
+	@echo "Grafana up: https://<GRAFANA_DOMAIN> (ingress rendered from .env)"
 
 apply-db-migrate:
 	@echo "Run DB migrations (identity + stream)"

@@ -1,0 +1,131 @@
+{
+  "uid": "gocast-storage",
+  "title": "GoCast — MinIO Storage",
+  "tags": ["gocast"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "browser",
+  "graphTooltip": 1,
+  "templating": {
+    "list": [
+      { "type": "query", "name": "bucket", "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(bucket_objects_count, bucket)", "query": "label_values(bucket_objects_count, bucket)", "label": "bucket", "multi": true, "includeAll": true, "allValue": ".*", "current": { "text": "All", "value": "$__all" } }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "MinIO up",
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0.9 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "up{job=\"minio\"}",
+          "legendFormat": "minio",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Objects in bucket",
+      "gridPos": { "h": 6, "w": 6, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(bucket_objects_count{job=\"minio\", bucket=~\"$bucket\"})",
+          "legendFormat": "objects",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Bucket usage",
+      "gridPos": { "h": 6, "w": 6, "x": 10, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 21474836480 }, { "color": "red", "value": 85899345920 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(bucket_usage_size{job=\"minio\", bucket=~\"$bucket\"})",
+          "legendFormat": "usage",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Free capacity",
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(minio_cluster_capacity_usable_free_bytes{job=\"minio\"})",
+          "legendFormat": "free",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Bucket objects over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (bucket) (bucket_objects_count{job=\"minio\", bucket=~\"$bucket\"})",
+          "legendFormat": "{{bucket}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Bucket usage over time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (bucket) (bucket_usage_size{job=\"minio\", bucket=~\"$bucket\"})",
+          "legendFormat": "{{bucket}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Capacity (usable free)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (instance) (minio_cluster_capacity_usable_free_bytes{job=\"minio\"})",
+          "legendFormat": "{{instance}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    }
+  ]
+}

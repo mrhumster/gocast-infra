@@ -25,6 +25,7 @@ set +a
 API="${API_DOMAIN:-${DOMAIN}}"
 STORAGE="${STORAGE_DOMAIN:-${DOMAIN}}"
 CONSOLE="${CONSOLE_DOMAIN:-${DOMAIN}}"
+GRAFANA="${GRAFANA_DOMAIN:-grafana.${DOMAIN}}"
 
 mkdir -p "${OUT_DIR}" "${INGRESS_DIR}"
 
@@ -69,6 +70,10 @@ ingress () {
     echo "  annotations:"
     case "${name}" in
       frontend)
+        echo "    cert-manager.io/issuer: \"ca-issuer\""
+        ;;
+      grafana)
+        echo "    nginx.ingress.kubernetes.io/backend-protocol: \"HTTP\""
         echo "    cert-manager.io/issuer: \"ca-issuer\""
         ;;
       identity-service|stream-service)
@@ -118,6 +123,7 @@ ingress identity-service  "${API}"          identity-service 80 "/auth"   auth-t
 ingress stream-service    "${API}"          stream-service   80 "/stream" stream-tls
 ingress minio-api         "${STORAGE}"      minio           9000 "/"      minio-api-tls
 ingress minio-console     "${CONSOLE}"      minio           9090 "/"      minio-console-tls
+ingress grafana           "${GRAFANA}"      grafana         3000 "/"      grafana-tls
 
 echo "Rendering ConfigMaps from ${ENV_FILE#${ROOT}/} -> ${OUT_DIR}"
 
@@ -173,5 +179,8 @@ cm thumbnail-service-config \
   "WORKER_CONCURRENCY=1" \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \
   "METRICS_ADDR=${METRICS_ADDR}"
+
+cm grafana-config \
+  "GF_SERVER_ROOT_URL=https://${GRAFANA}"
 
 echo "Done. Apply with: kubectl apply -f ${OUT_DIR}/"

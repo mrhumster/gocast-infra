@@ -13,7 +13,7 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome render infra apps status
+all: wellcome render infra apps apply-prometheus status
 
 wellcome:
 	@echo "$$LOGO"

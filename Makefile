@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery infra apps clean status backup restore build-web
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus infra apps clean status backup restore build-web
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -36,6 +36,11 @@ apply-ingresses:
 apply-recovery:
 	@echo "Apply kindnet recovery DaemonSet (auto-heal pod-network flake)"
 	kubectl apply -f deploy/k8s/kindnet-recovery/.
+
+apply-prometheus:
+	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"
+	kubectl apply -f deploy/k8s/prometheus/.
+	@echo "Access: kubectl -n $(NAMESPACE) port-forward svc/prometheus-server 9090:9090"
 
 infra: ensure-namespace apply-recovery
 	@echo "Install cert-manager"

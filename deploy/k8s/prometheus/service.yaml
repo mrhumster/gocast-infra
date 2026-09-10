@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-server
+  namespace: go-app
+  labels:
+    app: prometheus-server
+spec:
+  selector:
+    app: prometheus-server
+  ports:
+    - name: http
+      port: 9090
+      targetPort: http

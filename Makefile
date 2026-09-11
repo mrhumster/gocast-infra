@@ -92,6 +92,11 @@ apps: ensure-namespace apply-configmaps apply-ingresses
 	kubectl apply -f $(SERVICES_DIR)/thumbnail-service/deploy/k8s/keda/.
 	@echo "Wait thumbnail-service..."
 	kubectl wait --for=condition=Available deployment/thumbnail-service -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy mailer-service"
+	kubectl apply -f $(SERVICES_DIR)/mailer-service/deploy/k8s/mailer/.
+	kubectl apply -f $(SERVICES_DIR)/mailer-service/deploy/k8s/keda/.
+	@echo "Wait mailer-service..."
+	kubectl wait --for=condition=Available deployment/mailer-service -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"
 	kubectl apply -f $(SERVICES_DIR)/web-frontend/k8s/.
 	@echo "Wait web-frontend..."

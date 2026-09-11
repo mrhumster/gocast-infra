@@ -3,3 +3,4 @@ services/*
 !services/db-migrate/
 .env
 deploy/generated/
+deploy/backups/

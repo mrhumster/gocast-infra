@@ -1,7 +1,7 @@
 # GoCast
 
 Monorepo for a video hosting/streaming platform: a React SPA frontend (`services/web-frontend`)
-plus Go microservices (identity, stream, transcoder, thumbnail) deployed on a kind cluster.
+plus Go microservices (identity, stream, transcoder, thumbnail) deployed on a **k3s** cluster in WSL.
 
 ## Repository structure
 
@@ -20,8 +20,7 @@ plus Go microservices (identity, stream, transcoder, thumbnail) deployed on a ki
 │   ├── backups/                # backups from `make backup` (gitignored)
 │   └── k8s/
 │       ├── prometheus/         # lightweight Prometheus server (no PVC)
-│       ├── grafana/            # Grafana UI (provisioned datasource + GoCast dashboards)
-│       └── kindnet-recovery/   # DaemonSet that auto-heals kindnet/pod-network flakiness
+│       └── grafana/            # Grafana UI (provisioned datasource + GoCast dashboards)
 └── services/
     ├── identity-service/    # Go: auth (JWT), users, RBAC (Casbin), gRPC permissions
     ├── stream-service/      # Go: upload (simple + multipart), HLS, thumbnails, WebSocket, MinIO
@@ -54,10 +53,10 @@ On the machine that runs the deployment:
 
 | Tool | Purpose |
 |---|---|
-| `kind` | local K8s cluster |
-| `kubectl` | apply/deploy, pod logs |
+| `k3s` | local K8s cluster (systemd service in WSL) |
+| `kubectl` | apply/deploy, pod logs (k3s-provided symlink) |
 | `helm` | postgres, redis (bitnami), KEDA |
-| `docker` | build and push images to Docker Hub |
+| `docker` | build and push images to Docker Hub (Docker Engine in WSL) |
 | `mc` (MinIO Client) | backup/restore of the MinIO bucket |
 | `pnpm` | frontend build (`services/web-frontend`) |
 
@@ -67,17 +66,21 @@ On the machine that runs the deployment:
 > images already present in Docker Hub (`xomrkob/*:latest`, `imagePullPolicy: Always`).
 
 ```bash
-# 1. Create the kind cluster manually (any name; examples use "desktop").
-kind create cluster --name desktop
+# 1. Create the k3s cluster (systemd service; traefik, local-path, metrics-server included)
+curl -sfL https://get.k3s.io | sudo sh -s - server --write-kubeconfig-mode 644
 
-# 2. Prepare config (one file — all non-secret settings)
+# 2. Point kubectl at it (k3s symlinks /usr/local/bin/kubectl itself)
+mkdir -p ~/.kube && cp /etc/rancher/k3s/k3s.yaml ~/.kube/config && chmod 600 ~/.kube/config
+export KUBECONFIG=$HOME/.kube/config     # add to ~/.zshrc/~/.bashrc
+
+# 3. Prepare config (one file — all non-secret settings)
 cp .env.example .env            # then edit .env (domains, ADMIN_EMAIL)
 ```
 
 If service images already exist in Docker Hub — deploy right away:
 
 ```bash
-# 3. Deploy infrastructure + apps + migrations + prometheus + grafana
+# 4. Deploy infrastructure + apps + migrations + prometheus + grafana
 make all                        # = render + infra + apply-db-migrate + apps + apply-prometheus + apply-grafana + status
 ```
 
@@ -89,11 +92,16 @@ make -C services/identity-service build push    # and the same for stream/transc
 # then: make all
 ```
 
+Locally-built images (not yet on Docker Hub) can be loaded into k3s containerd:
+```bash
+make import-images    # docker save xomrkob/web-frontend:latest | sudo k3s ctr images import -
+```
+
 `make all` automatically:
 - `render` — generate K8s ConfigMaps from `.env` into `deploy/generated/configmaps/` and
   Ingresses into `deploy/generated/ingresses/`;
-- `infra` — namespace `go-app`, cert-manager, ingress-nginx, PostgreSQL (Helm), Redis (Helm),
-  MinIO (+ init job: bucket/user), KEDA, gRPC mTLS certificates, kindnet-recovery DaemonSet;
+- `infra` — namespace `go-app`, cert-manager, PostgreSQL (Helm), Redis (Helm),
+  MinIO (+ init job: bucket/user), KEDA, gRPC mTLS certificates;
 - `apply-db-migrate` — run pending schema migrations (`db-migrate-identity`,
   `db-migrate-stream` K8s Jobs);
 - `apps` — deploy identity/stream/transcoder/thumbnail/web-frontend (workers autoscale to 0
@@ -211,8 +219,8 @@ click-through setup:
 
 ## Backup / restore (disaster recovery)
 
-PVCs live inside the kind container, so `kind delete` destroys data: postgres — `hostpath` 8Gi,
-Redis — without persistence, MinIO — in-container storage.
+PVCs live on the k3s node's local disk (`local-path` SC): postgres — `local-path` 8Gi,
+Redis — without persistence, MinIO — PVC 30Gi.
 The strategy is **restore**: back up before recreating, restore afterwards.
 
 ### Full scenario
@@ -222,10 +230,10 @@ The strategy is **restore**: back up before recreating, restore afterwards.
 make backup                         # -> deploy/backups/<timestamp>/
 
 # 2. Lost the cluster (or intentional recreation)
-kind delete cluster --name desktop
+sudo systemctl stop k3s && sudo rm -rf /var/lib/rancher/k3s   # or reinstall k3s
 
 # 3. Deploy again
-kind create cluster --name desktop
+curl -sfL https://get.k3s.io | sudo sh -s - server --write-kubeconfig-mode 644
 cp .env.example .env                # if .env is lost too — re-fill it
 make all                            # includes apply-db-migrate on the fresh DB
 
@@ -256,7 +264,7 @@ If they were changed/generated at runtime (not from git manifests), prepare them
 ```bash
 make all            # full deploy: render + infra + apply-db-migrate + apps + apply-prometheus + apply-grafana + status
 make render         # regenerate ConfigMaps + Ingresses from .env
-make infra          # infrastructure (ns, cert-manager, ingress, postgres, redis, minio, KEDA, mTLS, kindnet-recovery)
+make infra          # infrastructure (ns, cert-manager, postgres, redis, minio, KEDA, mTLS)
 make apply-db-migrate # run pending schema migrations for identity/stream
 make apps           # apps (identity, stream, transcoder, thumbnail, web-frontend)
 make apply-prometheus # deploy lightweight Prometheus (server already in deploy/k8s/prometheus/)
@@ -273,12 +281,13 @@ Build a service: `make -C services/<service> build push deploy` (image
 
 ## Known issues
 
-- **kindnet veth flakiness (WSL2/Docker Desktop)** — pods Running but pod→pod TCP to
-  postgres/redis times out (symptom: 504, hangs on login/upload). Treatment: recreate kindnet +
-  postgres/redis pods (`kubectl delete pod -n kube-system -l k8s-app=kindnet`, then pg/redis).
-  Now **auto-healed** by the `kindnet-recovery` DaemonSet (checks TCP every 45s, restarts the
-  CNI pods on 3 consecutive failures). Recurred often before it existed.
-- **Postgres PVC `hostpath`** — lives only while the kind container lives; without
-  `make backup` before `kind delete` data is lost.
+- **k3s version skew** — nothing of the old Docker Desktop/k3s issues applies here anymore:
+  the cluster was migrated 2026-09-11 from Docker Desktop (kindnet CNI, ingress-nginx) to **k3s**
+  (flannel + traefik) because kindnet pod→pod TCP flakiness was recurring 9+ times a month.
+- **Postgres PVC `local-path`** — data lives on the k3s node disk; without `make backup` before
+  reinstalling k3s, data is lost.
+- **Ingress access from WSL** — curl to `*.example.com` from WSL via the traefik LB may time out
+  (WSL networking quirk); test ingresses from the Windows side (hosts entry) or with
+  `--resolve <domain>:443:<traefik-LB-IP>`.
 - **WebSocket** — the token is sent in the `Sec-WebSocket-Protocol` (subprotocol); the server
   must echo it during the handshake (gorilla/websocket only echoes what the handler passes back).

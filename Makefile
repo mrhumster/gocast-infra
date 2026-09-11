@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-recovery apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web import-images
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -33,10 +33,6 @@ apply-ingresses:
 	@echo "Apply Ingresses (from .env)"
 	kubectl apply -f deploy/generated/ingresses/.
 
-apply-recovery:
-	@echo "Apply kindnet recovery DaemonSet (auto-heal pod-network flake)"
-	kubectl apply -f deploy/k8s/kindnet-recovery/.
-
 apply-prometheus:
 	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"
 	kubectl apply -f deploy/k8s/prometheus/.
@@ -56,11 +52,9 @@ apply-db-migrate:
 	kubectl wait --for=condition=complete job/db-migrate-stream -n $(NAMESPACE) --timeout=180s
 	@echo "DB migrations done"
 
-infra: ensure-namespace apply-recovery
+infra: ensure-namespace
 	@echo "Install cert-manager"
 	make -C $(SERVICES_DIR)/identity-service deploy-certmanager
-	@echo "Install ingress controller"
-	make -C $(SERVICES_DIR)/identity-service deploy-ingress-nginx
 	@echo "Install Postgresql"
 	make -C $(SERVICES_DIR)/identity-service deploy-postgres
 	@echo "Install Redis"
@@ -131,6 +125,14 @@ build-web:
 		-t xomrkob/web-frontend:latest \
 		$(SERVICES_DIR)/web-frontend
 	docker push xomrkob/web-frontend:latest
+
+# ------------------------------------------------------------------
+# k3s: импорт локальных docker-образов в containerd (после docker build)
+# ------------------------------------------------------------------
+import-images:
+	@echo "Importing locally-built images into k3s containerd"
+	docker save xomrkob/web-frontend:latest | sudo k3s ctr images import -
+	@echo "Images imported"
 
 uninstall:
 	@echo "Deleting all namespace: $(NAMESPACE)"

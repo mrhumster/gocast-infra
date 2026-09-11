@@ -68,35 +68,11 @@ ingress () {
     echo "  name: ${name}"
     echo "  namespace: go-app"
     echo "  annotations:"
-    case "${name}" in
-      frontend)
-        echo "    cert-manager.io/issuer: \"ca-issuer\""
-        ;;
-      grafana)
-        echo "    nginx.ingress.kubernetes.io/backend-protocol: \"HTTP\""
-        echo "    cert-manager.io/issuer: \"ca-issuer\""
-        ;;
-      identity-service|stream-service)
-        echo "    nginx.ingress.kubernetes.io/backend-protocol: \"HTTP\""
-        echo "    nginx.ingress.kubernetes.io/http2-listener: \"true\""
-        echo "    cert-manager.io/issuer: \"ca-issuer\""
-        ;;
-      minio-console)
-        echo "    nginx.ingress.kubernetes.io/use-forwarded-headers: \"true\""
-        echo "    nginx.ingress.kubernetes.io/backend-protocol: \"HTTP\""
-        echo "    cert-manager.io/issuer: \"ca-issuer\""
-        ;;
-      minio-api)
-        echo "    nginx.ingress.kubernetes.io/use-forwarded-headers: \"true\""
-        echo "    cert-manager.io/issuer: \"ca-issuer\""
-        ;;
-    esac
+    echo "    cert-manager.io/issuer: \"ca-issuer\""
     if [[ "${name}" == "stream-service" ]]; then
-      echo "    nginx.ingress.kubernetes.io/client-max-body-size: \"0\""
-      echo "    nginx.ingress.kubernetes.io/proxy-body-size: \"1024m\""
+      echo "    traefik.ingress.kubernetes.io/buffering.maxRequestBodyBytes: \"1073741824\""
     fi
     echo "spec:"
-    echo "  ingressClassName: nginx"
     echo "  tls:"
     echo "    - hosts:"
     echo "        - ${host}"

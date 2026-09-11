@@ -8,11 +8,18 @@ import (
 )
 
 type Config struct {
-	Redis  Redis
-	MinIO  MinIO
-	Server Server
-	Worker Worker
-	Mail   Mail
+	Redis      Redis
+	MinIO      MinIO
+	Server     Server
+	Worker     Worker
+	Mail       Mail
+	Transcoder Transcoder
+}
+
+// Transcoder configures the video transcode path of a worker service.
+// Encoder controls hardware/software encoding: "auto" (detect at startup), "cpu" (libx264), "vaapi" (AMD VCN).
+type Transcoder struct {
+	Encoder string // TRANSCODER_ENCODER
 }
 
 type Worker struct {
@@ -109,6 +116,9 @@ func LoadConfig() (*Config, error) {
 			SenderPass:  getEnv("SMTP_PASS", ""),
 			From:        getEnv("SMTP_FROM", ""),
 			FrontendURL: getEnv("FRONTEND_URL", "https://example.com"),
+		},
+		Transcoder: Transcoder{
+			Encoder: getEnv("TRANSCODER_ENCODER", "auto"),
 		},
 	}, nil
 }

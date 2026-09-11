@@ -23,6 +23,7 @@ func TestLoadConfig(t *testing.T) {
 		assert.Empty(t, cfg.Mail.SenderAddr)
 		assert.Empty(t, cfg.Mail.From)
 		assert.Equal(t, "https://example.com", cfg.Mail.FrontendURL)
+		assert.Equal(t, "auto", cfg.Transcoder.Encoder)
 	})
 
 	t.Run("reads from env", func(t *testing.T) {
@@ -33,6 +34,7 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("SMTP_ADDR", "smtp.example.com:587")
 		t.Setenv("SMTP_FROM", "no-reply@example.com")
 		t.Setenv("FRONTEND_URL", "https://gocast.example.com")
+		t.Setenv("TRANSCODER_ENCODER", "vaapi")
 
 		cfg, err := LoadConfig()
 		require.NoError(t, err)
@@ -43,5 +45,6 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "smtp.example.com:587", cfg.Mail.SenderAddr)
 		assert.Equal(t, "no-reply@example.com", cfg.Mail.From)
 		assert.Equal(t, "https://gocast.example.com", cfg.Mail.FrontendURL)
+		assert.Equal(t, "vaapi", cfg.Transcoder.Encoder)
 	})
 }

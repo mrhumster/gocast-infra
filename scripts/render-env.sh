@@ -153,7 +153,8 @@ cm minio-config \
 cm transcoder-service-config \
   "WORKER_CONCURRENCY=1" \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \
-  "METRICS_ADDR=${METRICS_ADDR}"
+  "METRICS_ADDR=${METRICS_ADDR}" \
+  "TRANSCODER_ENCODER=${TRANSCODER_ENCODER:-auto}"
 
 cm thumbnail-service-config \
   "WORKER_CONCURRENCY=1" \

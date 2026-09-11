@@ -3,7 +3,7 @@
   "title": "GoCast — Business Activity",
   "tags": ["gocast"],
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -170,6 +170,38 @@
         {
           "expr": "sum(stream_uploads_total{namespace=\"$namespace\", stage=\"complete\"})",
           "legendFormat": "complete",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Emails by status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(mailer_sent_total{namespace=\"$namespace\"}[5m]))",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Emails sent total",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(mailer_sent_total{namespace=\"$namespace\"})",
+          "legendFormat": "emails",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }

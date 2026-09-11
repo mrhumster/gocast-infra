@@ -3,7 +3,7 @@
   "title": "GoCast — Workers (asynq)",
   "tags": ["gocast"],
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -50,13 +50,13 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Errors (thumbnail + transcoder)",
+      "title": "Errors (thumbnail + transcoder + mailer)",
       "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] } }, "overrides": [] },
       "targets": [
         {
-          "expr": "sum(thumbnail_generation_errors_total{namespace=\"$namespace\"}) + sum(transcoder_processing_errors_total{namespace=\"$namespace\"})",
+          "expr": "sum(thumbnail_generation_errors_total{namespace=\"$namespace\"}) + sum(transcoder_processing_errors_total{namespace=\"$namespace\"}) + sum(mailer_sent_total{namespace=\"$namespace\", status=\"error\"})",
           "legendFormat": "errors",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
@@ -72,8 +72,56 @@
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
       "targets": [
         {
-          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*\"})",
+          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*|mailer-.*\"})",
           "legendFormat": "workers up",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Emails sent total",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(mailer_sent_total{namespace=\"$namespace\"})",
+          "legendFormat": "emails",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Emails failed total",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(mailer_sent_total{namespace=\"$namespace\", status=\"error\"})",
+          "legendFormat": "emails failed",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "SMTP delivery duration p95",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(mailer_duration_seconds_bucket{namespace=\"$namespace\"}[5m])))",
+          "legendFormat": "delivery p95",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
@@ -83,7 +131,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "asynq tasks processed by status",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
       "targets": [
@@ -99,7 +147,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "asynq tasks in flight",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
       "targets": [
@@ -115,7 +163,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "asynq task duration p95",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
       "targets": [
@@ -130,8 +178,8 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Thumbnail + transcoder rates",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "title": "Worker rates",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
       "targets": [
@@ -145,6 +193,12 @@
           "expr": "sum(rate(transcoder_processed_total{namespace=\"$namespace\"}[5m]))",
           "legendFormat": "transcodes/s",
           "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(mailer_sent_total{namespace=\"$namespace\"}[5m]))",
+          "legendFormat": "emails/s",
+          "refId": "C",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
       ]

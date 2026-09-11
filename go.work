@@ -2,6 +2,7 @@ go 1.25.1
 
 use (
 	./services/db-migrate
+	./services/mailer-service
 	./services/shared
 	./services/thumbnail-service
 	./services/transcoder-service

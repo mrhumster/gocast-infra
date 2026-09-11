@@ -20,6 +20,9 @@ func TestLoadConfig(t *testing.T) {
 		assert.NotEmpty(t, cfg.MinIO.BucketName)
 		assert.NotEmpty(t, cfg.MinIO.Region)
 		assert.Empty(t, cfg.Server.MetricsAddr)
+		assert.Empty(t, cfg.Mail.SenderAddr)
+		assert.Empty(t, cfg.Mail.From)
+		assert.Equal(t, "https://example.com", cfg.Mail.FrontendURL)
 	})
 
 	t.Run("reads from env", func(t *testing.T) {
@@ -27,6 +30,9 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("MINIO_BUCKET_NAME", "custom-bucket")
 		t.Setenv("WORKER_CONCURRENCY", "4")
 		t.Setenv("METRICS_ADDR", ":9090")
+		t.Setenv("SMTP_ADDR", "smtp.example.com:587")
+		t.Setenv("SMTP_FROM", "no-reply@example.com")
+		t.Setenv("FRONTEND_URL", "https://gocast.example.com")
 
 		cfg, err := LoadConfig()
 		require.NoError(t, err)
@@ -34,5 +40,8 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "custom-bucket", cfg.MinIO.BucketName)
 		assert.Equal(t, 4, cfg.Worker.Concurrency)
 		assert.Equal(t, ":9090", cfg.Server.MetricsAddr)
+		assert.Equal(t, "smtp.example.com:587", cfg.Mail.SenderAddr)
+		assert.Equal(t, "no-reply@example.com", cfg.Mail.From)
+		assert.Equal(t, "https://gocast.example.com", cfg.Mail.FrontendURL)
 	})
 }

@@ -12,6 +12,7 @@ type Config struct {
 	MinIO  MinIO
 	Server Server
 	Worker Worker
+	Mail   Mail
 }
 
 type Worker struct {
@@ -41,6 +42,16 @@ type MinIO struct {
 	BucketName      string
 	UseSSL          bool
 	Region          string
+}
+
+// Mail configures the outgoing email transport of a notification worker.
+// SenderAddr empty turns the worker into log-only mode (no real delivery).
+type Mail struct {
+	SenderAddr  string // SMTP_ADDR, e.g. smtp.example.com:587
+	SenderUser  string // SMTP_USER
+	SenderPass  string // SMTP_PASS
+	From        string // SMTP_FROM, sender address used in headers
+	FrontendURL string // FRONTEND_URL, base for links in messages
 }
 
 func LoadConfig() (*Config, error) {
@@ -91,6 +102,13 @@ func LoadConfig() (*Config, error) {
 		Worker: Worker{
 			Concurrency:     int(concurrency),
 			ShutdownTimeout: shutdownTimeout,
+		},
+		Mail: Mail{
+			SenderAddr:  getEnv("SMTP_ADDR", ""),
+			SenderUser:  getEnv("SMTP_USER", ""),
+			SenderPass:  getEnv("SMTP_PASS", ""),
+			From:        getEnv("SMTP_FROM", ""),
+			FrontendURL: getEnv("FRONTEND_URL", "https://example.com"),
 		},
 	}, nil
 }

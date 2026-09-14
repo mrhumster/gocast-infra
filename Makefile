@@ -134,6 +134,7 @@ build-web:
 		--build-arg VITE_WS_URL=$$VITE_WS_URL \
 		--build-arg VITE_HLS_URL=$$VITE_HLS_URL \
 		--build-arg VITE_STORAGE_URL=$$VITE_STORAGE_URL \
+		--build-arg VITE_EVENTS_URL=$$VITE_EVENTS_URL \
 		-t xomrkob/web-frontend:latest \
 		$(SERVICES_DIR)/web-frontend
 	docker push xomrkob/web-frontend:latest

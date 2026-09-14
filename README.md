@@ -26,6 +26,8 @@ plus Go microservices (identity, stream, transcoder, thumbnail) deployed on a **
     ├── stream-service/      # Go: upload (simple + multipart), HLS, thumbnails, WebSocket, MinIO
     ├── transcoder-service/  # Go + ffmpeg: video transcoding, KEDA-scaled asynq worker
     ├── thumbnail-service/   # Go + ffmpeg: preview generation, KEDA-scaled asynq worker
+    ├── mailer-service/      # Go: asynq SMTP mailer (email verification), KEDA-scaled worker
+    ├── events-service/      # Go: activity feed (REST reader + asynq worker), KEDA-scaled
     ├── shared/              # shared Go module (gocast infra): worker, config, grpctls, metrics
     ├── db-migrate/          # golang-migrate runner for per-service schemas (Postgres)
     └── web-frontend/        # React 19 SPA (Vite, Tailwind 4, RTK Query, HLS.js)
@@ -149,13 +151,16 @@ GORM `AutoMigrate` was removed from identity/stream (connect + pool only).
 
 - **Per-service migration sets** under `services/db-migrate/migrations/`:
   - `identity/` — `users`, `casbin_rule`, `uuid-ossp`;
-  - `stream/` — `streams`.
-- **Own version table per target**: `schema_migrations_identity` and `schema_migrations_stream`.
+  - `stream/` — `streams`;
+  - `events/` — `activity_events`.
+- **Own version table per target**: `schema_migrations_identity`, `schema_migrations_stream`
+  and `schema_migrations_events`.
   Both services currently share one Postgres (`database1`); the separate version tables mean
   versions never collide, and moving a service to its own database later only changes the DSN
   of the corresponding Job.
-- **Two K8s Jobs**: `db-migrate-identity` and `db-migrate-stream` (env from
-  `identity-service-config`/`stream-service-config`, DB credentials from `go-app-secret`).
+- **K8s Jobs**: `db-migrate-identity`, `db-migrate-stream` and `db-migrate-events` (env from
+  `identity-service-config`/`stream-service-config`/`events-service-config`, DB credentials from
+  `go-app-secret`).
   `ttlSecondsAfterFinished: 600` — Jobs clean themselves up, so re-applying always runs fresh.
 - `0001_baseline` in each set is an idempotent snapshot of the production schema
   (`CREATE ... IF NOT EXISTS`) — no-op on live DBs, full creation on fresh ones.

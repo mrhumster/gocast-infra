@@ -46,10 +46,11 @@ apply-grafana: ensure-namespace apply-configmaps apply-ingresses
 	@echo "Grafana up: https://<GRAFANA_DOMAIN> (ingress rendered from .env)"
 
 apply-db-migrate:
-	@echo "Run DB migrations (identity + stream)"
+	@echo "Run DB migrations (identity + stream + events)"
 	kubectl apply -f $(SERVICES_DIR)/db-migrate/deploy/k8s/.
 	kubectl wait --for=condition=complete job/db-migrate-identity -n $(NAMESPACE) --timeout=180s
 	kubectl wait --for=condition=complete job/db-migrate-stream -n $(NAMESPACE) --timeout=180s
+	kubectl wait --for=condition=complete job/db-migrate-events -n $(NAMESPACE) --timeout=180s
 	@echo "DB migrations done"
 
 infra: ensure-namespace
@@ -97,6 +98,12 @@ apps: ensure-namespace apply-configmaps apply-ingresses
 	kubectl apply -f $(SERVICES_DIR)/mailer-service/deploy/k8s/keda/.
 	@echo "Wait mailer-service..."
 	kubectl wait --for=condition=Available deployment/mailer-service -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy events-service"
+	kubectl apply -f $(SERVICES_DIR)/events-service/deploy/k8s/reader/.
+	kubectl apply -f $(SERVICES_DIR)/events-service/deploy/k8s/worker/.
+	kubectl apply -f $(SERVICES_DIR)/events-service/deploy/k8s/keda/.
+	@echo "Wait events-reader..."
+	kubectl wait --for=condition=Available deployment/events-reader -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"
 	kubectl apply -f $(SERVICES_DIR)/web-frontend/k8s/.
 	@echo "Wait web-frontend..."

@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate-events
+  namespace: go-app
+  labels:
+    app: db-migrate
+    target: events
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: db-migrate
+        target: events
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: db-migrate-events
+          image: xomrkob/db-migrate:latest
+          imagePullPolicy: Always
+          args: ["-target=events"]
+          envFrom:
+            - configMapRef:
+                name: events-service-config
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_USER
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: go-app-secret
+                  key: DB_PASS

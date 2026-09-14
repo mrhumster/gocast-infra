@@ -2,8 +2,11 @@ go 1.25.1
 
 use (
 	./services/db-migrate
+	./services/events-service
+	./services/identity-service
 	./services/mailer-service
 	./services/shared
+	./services/stream-service
 	./services/thumbnail-service
 	./services/transcoder-service
 )

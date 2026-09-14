@@ -3,7 +3,7 @@
   "title": "GoCast — Workers (asynq)",
   "tags": ["gocast"],
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -50,13 +50,13 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Errors (thumbnail + transcoder + mailer)",
+      "title": "Errors (thumbnail + transcoder + mailer + events)",
       "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] } }, "overrides": [] },
       "targets": [
         {
-          "expr": "sum(thumbnail_generation_errors_total{namespace=\"$namespace\"}) + sum(transcoder_processing_errors_total{namespace=\"$namespace\"}) + sum(mailer_sent_total{namespace=\"$namespace\", status=\"error\"})",
+          "expr": "sum(thumbnail_generation_errors_total{namespace=\"$namespace\"}) + sum(transcoder_processing_errors_total{namespace=\"$namespace\"}) + sum(mailer_sent_total{namespace=\"$namespace\", status=\"error\"}) + sum(events_recorded_total{namespace=\"$namespace\", status=\"error\"})",
           "legendFormat": "errors",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
@@ -72,7 +72,7 @@
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
       "targets": [
         {
-          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*|mailer-.*\"})",
+          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*|mailer-.*|events-worker-.*\"})",
           "legendFormat": "workers up",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
@@ -199,6 +199,28 @@
           "expr": "sum(rate(mailer_sent_total{namespace=\"$namespace\"}[5m]))",
           "legendFormat": "emails/s",
           "refId": "C",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(events_recorded_total{namespace=\"$namespace\"}[5m]))",
+          "legendFormat": "events/s",
+          "refId": "D",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Events recorded total",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(events_recorded_total{namespace=\"$namespace\"})",
+          "legendFormat": "events",
+          "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }
       ]

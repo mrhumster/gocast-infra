@@ -3,7 +3,7 @@
   "title": "GoCast — Business Activity",
   "tags": ["gocast"],
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -202,6 +202,38 @@
         {
           "expr": "sum(mailer_sent_total{namespace=\"$namespace\"})",
           "legendFormat": "emails",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Activity events recorded (total)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 36 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(events_recorded_total{namespace=\"$namespace\"})",
+          "legendFormat": "events",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Events by status",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(events_recorded_total{namespace=\"$namespace\"}[5m]))",
+          "legendFormat": "{{status}}",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }

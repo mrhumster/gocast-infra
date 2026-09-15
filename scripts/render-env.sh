@@ -27,6 +27,7 @@ STORAGE="${STORAGE_DOMAIN:-${DOMAIN}}"
 CONSOLE="${CONSOLE_DOMAIN:-${DOMAIN}}"
 GRAFANA="${GRAFANA_DOMAIN:-grafana.${DOMAIN}}"
 EVENTS="${EVENTS_DOMAIN:-events.${DOMAIN}}"
+COMMENTS="${COMMENTS_DOMAIN:-comments.${DOMAIN}}"
 SMTP_ADDR="${SMTP_ADDR:-}"
 SMTP_USER="${SMTP_USER:-}"
 SMTP_FROM="${SMTP_FROM:-no-reply@${DOMAIN}}"
@@ -106,6 +107,7 @@ ingress minio-api         "${STORAGE}"      minio           9000 "/"      minio-
 ingress minio-console     "${CONSOLE}"      minio           9090 "/"      minio-console-tls
 ingress grafana           "${GRAFANA}"      grafana         3000 "/"      grafana-tls
 ingress events-service    "${EVENTS}"       events-reader    8080 "/"      events-tls
+ingress comments-service  "${COMMENTS}"     comments-reader  8080 "/"      comments-tls
 
 echo "Rendering ConfigMaps from ${ENV_FILE#${ROOT}/} -> ${OUT_DIR}"
 
@@ -185,6 +187,19 @@ cm events-service-config \
   "REDIS_QUEUE_DB=3" \
   "WORKER_CONCURRENCY=1" \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \
+  "METRICS_ADDR=${METRICS_ADDR}" \
+  "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
+  "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
+
+cm comments-service-config \
+  "SERVER_ADDR=:8080" \
+  "MODE=release" \
+  "DOMAIN=${COMMENTS}" \
+  "DB_HOST=${DB_HOST}" \
+  "DB_PORT=${DB_PORT}" \
+  "DB_NAME=${DB_NAME}" \
+  "REDIS_ADDR=${REDIS_ADDR}" \
+  "REDIS_QUEUE_DB=3" \
   "METRICS_ADDR=${METRICS_ADDR}" \
   "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
   "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"

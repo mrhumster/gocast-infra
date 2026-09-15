@@ -1,6 +1,7 @@
 go 1.25.1
 
 use (
+	./services/comments-service
 	./services/db-migrate
 	./services/events-service
 	./services/identity-service

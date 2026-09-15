@@ -28,6 +28,7 @@ CONSOLE="${CONSOLE_DOMAIN:-${DOMAIN}}"
 GRAFANA="${GRAFANA_DOMAIN:-grafana.${DOMAIN}}"
 EVENTS="${EVENTS_DOMAIN:-events.${DOMAIN}}"
 COMMENTS="${COMMENTS_DOMAIN:-comments.${DOMAIN}}"
+STREAM_SERVICE_URL="${STREAM_SERVICE_URL:-http://stream-service:80}"
 SMTP_ADDR="${SMTP_ADDR:-}"
 SMTP_USER="${SMTP_USER:-}"
 SMTP_FROM="${SMTP_FROM:-no-reply@${DOMAIN}}"
@@ -202,6 +203,7 @@ cm comments-service-config \
   "REDIS_QUEUE_DB=3" \
   "METRICS_ADDR=${METRICS_ADDR}" \
   "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
+  "STREAM_SERVICE_URL=${STREAM_SERVICE_URL}" \
   "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
 
 cm grafana-config \

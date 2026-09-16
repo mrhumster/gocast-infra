@@ -3,11 +3,19 @@ kind: Job
 metadata:
   name: db-migrate-stats
   namespace: go-app
+  labels:
+    app: db-migrate
+    target: stats
 spec:
   backoffLimit: 2
-  restartPolicy: Never
+  ttlSecondsAfterFinished: 600
   template:
+    metadata:
+      labels:
+        app: db-migrate
+        target: stats
     spec:
+      restartPolicy: Never
       containers:
         - name: db-migrate-stats
           image: xomrkob/db-migrate:latest

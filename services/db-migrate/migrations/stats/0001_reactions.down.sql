@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS stream_views;
+
+DROP TABLE IF EXISTS reactions;

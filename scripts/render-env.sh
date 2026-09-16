@@ -28,6 +28,7 @@ CONSOLE="${CONSOLE_DOMAIN:-${DOMAIN}}"
 GRAFANA="${GRAFANA_DOMAIN:-grafana.${DOMAIN}}"
 EVENTS="${EVENTS_DOMAIN:-events.${DOMAIN}}"
 COMMENTS="${COMMENTS_DOMAIN:-comments.${DOMAIN}}"
+STATS="${STATS_DOMAIN:-stats.${DOMAIN}}"
 STREAM_SERVICE_URL="${STREAM_SERVICE_URL:-http://stream-service:80}"
 SMTP_ADDR="${SMTP_ADDR:-}"
 SMTP_USER="${SMTP_USER:-}"
@@ -109,6 +110,7 @@ ingress minio-console     "${CONSOLE}"      minio           9090 "/"      minio-
 ingress grafana           "${GRAFANA}"      grafana         3000 "/"      grafana-tls
 ingress events-service    "${EVENTS}"       events-reader    8080 "/"      events-tls
 ingress comments-service  "${COMMENTS}"     comments-reader  8080 "/"      comments-tls
+ingress stats-service     "${STATS}"        stats-reader     8080 "/"      stats-tls
 
 echo "Rendering ConfigMaps from ${ENV_FILE#${ROOT}/} -> ${OUT_DIR}"
 
@@ -199,6 +201,20 @@ cm comments-service-config \
   "DB_HOST=${DB_HOST}" \
   "DB_PORT=${DB_PORT}" \
   "DB_NAME=${DB_NAME}" \
+  "REDIS_ADDR=${REDIS_ADDR}" \
+  "REDIS_QUEUE_DB=3" \
+  "METRICS_ADDR=${METRICS_ADDR}" \
+  "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
+  "STREAM_SERVICE_URL=${STREAM_SERVICE_URL}" \
+  "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
+
+cm stats-service-config \
+  "SERVER_ADDR=:8080" \
+  "MODE=release" \
+  "DOMAIN=${STATS}" \
+  "DB_HOST=${DB_HOST}" \
+  "DB_PORT=${DB_PORT}" \
+  "DB_NAME=${STATS_DB_NAME:-stats}" \
   "REDIS_ADDR=${REDIS_ADDR}" \
   "REDIS_QUEUE_DB=3" \
   "METRICS_ADDR=${METRICS_ADDR}" \

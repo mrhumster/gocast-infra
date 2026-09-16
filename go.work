@@ -7,6 +7,7 @@ use (
 	./services/identity-service
 	./services/mailer-service
 	./services/shared
+	./services/stats-service
 	./services/stream-service
 	./services/thumbnail-service
 	./services/transcoder-service

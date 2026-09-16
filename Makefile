@@ -46,12 +46,13 @@ apply-grafana: ensure-namespace apply-configmaps apply-ingresses
 	@echo "Grafana up: https://<GRAFANA_DOMAIN> (ingress rendered from .env)"
 
 apply-db-migrate:
-	@echo "Run DB migrations (identity + stream + events + comments)"
+	@echo "Run DB migrations (identity + stream + events + comments + stats)"
 	kubectl apply -f $(SERVICES_DIR)/db-migrate/deploy/k8s/.
 	kubectl wait --for=condition=complete job/db-migrate-identity -n $(NAMESPACE) --timeout=180s
 	kubectl wait --for=condition=complete job/db-migrate-stream -n $(NAMESPACE) --timeout=180s
 	kubectl wait --for=condition=complete job/db-migrate-events -n $(NAMESPACE) --timeout=180s
 	kubectl wait --for=condition=complete job/db-migrate-comments -n $(NAMESPACE) --timeout=180s
+	kubectl wait --for=condition=complete job/db-migrate-stats -n $(NAMESPACE) --timeout=180s
 	@echo "DB migrations done"
 
 infra: ensure-namespace
@@ -109,6 +110,10 @@ apps: ensure-namespace apply-configmaps apply-ingresses
 	kubectl apply -f $(SERVICES_DIR)/comments-service/deploy/k8s/.
 	@echo "Wait comments-reader..."
 	kubectl wait --for=condition=Available deployment/comments-reader -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy stats-service"
+	kubectl apply -f $(SERVICES_DIR)/stats-service/deploy/k8s/.
+	@echo "Wait stats-reader..."
+	kubectl wait --for=condition=Available deployment/stats-reader -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"
 	kubectl apply -f $(SERVICES_DIR)/web-frontend/k8s/.
 	@echo "Wait web-frontend..."
@@ -141,6 +146,7 @@ build-web:
 		--build-arg VITE_STORAGE_URL=$$VITE_STORAGE_URL \
 		--build-arg VITE_EVENTS_URL=$$VITE_EVENTS_URL \
 		--build-arg VITE_COMMENTS_URL=$$VITE_COMMENTS_URL \
+		--build-arg VITE_STATS_URL=$$VITE_STATS_URL \
 		-t xomrkob/web-frontend:latest \
 		$(SERVICES_DIR)/web-frontend
 	docker push xomrkob/web-frontend:latest

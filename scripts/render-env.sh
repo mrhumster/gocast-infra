@@ -123,6 +123,7 @@ cm identity-service-config \
   "REDIS_ADDR=${REDIS_ADDR}" \
   "ADMIN_EMAIL=${ADMIN_EMAIL}" \
   "AUTH_SERVICE_ADDRESS=${AUTH_SERVICE_ADDRESS}" \
+  "AUTH_RATE_LIMIT=${AUTH_RATE_LIMIT:-30}" \
   "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
 
 cm stream-service-config \

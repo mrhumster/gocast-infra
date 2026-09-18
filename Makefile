@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web import-images
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-traefik apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web import-images
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -13,7 +13,7 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome render infra apply-db-migrate apps apply-prometheus apply-grafana status
+all: wellcome render infra apply-traefik apply-db-migrate apps apply-prometheus apply-grafana status
 
 wellcome:
 	@echo "$$LOGO"
@@ -32,6 +32,12 @@ apply-configmaps:
 apply-ingresses:
 	@echo "Apply Ingresses (from .env)"
 	kubectl apply -f deploy/generated/ingresses/.
+
+apply-traefik:
+	@echo "Apply traefik (unbundled: k3s disable + plain manifests, hostNetwork)"
+	kubectl apply -f deploy/k8s/traefik/.
+	kubectl rollout status deployment/traefik -n kube-system --timeout=120s
+	@echo "traefik up (hostNetwork :80/:443, ClusterIP service kube-system/traefik)"
 
 apply-prometheus:
 	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"

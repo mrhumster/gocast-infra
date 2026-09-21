@@ -193,6 +193,7 @@ cm events-service-config \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \
   "METRICS_ADDR=${METRICS_ADDR}" \
   "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
+  "EVENTS_READ_RATE_LIMIT=${EVENTS_READ_RATE_LIMIT:-120}" \
   "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
 
 cm comments-service-config \
@@ -207,6 +208,8 @@ cm comments-service-config \
   "METRICS_ADDR=${METRICS_ADDR}" \
   "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
   "STREAM_SERVICE_URL=${STREAM_SERVICE_URL}" \
+  "TRUSTED_PROXIES=${TRUSTED_PROXIES:-}" \
+  "COMMENTS_READ_RATE_LIMIT=${COMMENTS_READ_RATE_LIMIT:-300}" \
   "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}"
 
 cm stats-service-config \

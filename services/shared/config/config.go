@@ -14,6 +14,16 @@ type Config struct {
 	Worker     Worker
 	Mail       Mail
 	Transcoder Transcoder
+	Faces      Faces
+}
+
+// Faces configures the faces-detection pipeline: the internal faces-service
+// REST endpoint that ingests sampled frames (/infer) and the HTTP base URL of
+// stream-service used to resolve the stream owner via GET /stream/:id/status.
+type Faces struct {
+	ServiceURL      string // FACES_SERVICE_URL, e.g. http://faces-service:80
+	InternalToken   string // FACES_INTERNAL_TOKEN, shared secret for POST /infer
+	StreamServiceURL string // STREAM_SERVICE_URL, e.g. http://stream-service:80
 }
 
 // Transcoder configures the video transcode path of a worker service.
@@ -119,6 +129,11 @@ func LoadConfig() (*Config, error) {
 		},
 		Transcoder: Transcoder{
 			Encoder: getEnv("TRANSCODER_ENCODER", "auto"),
+		},
+		Faces: Faces{
+			ServiceURL:       getEnv("FACES_SERVICE_URL", "http://faces-service:80"),
+			InternalToken:    getEnv("FACES_INTERNAL_TOKEN", ""),
+			StreamServiceURL: getEnv("STREAM_SERVICE_URL", "http://stream-service:80"),
 		},
 	}, nil
 }

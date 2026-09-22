@@ -24,6 +24,9 @@ func TestLoadConfig(t *testing.T) {
 		assert.Empty(t, cfg.Mail.From)
 		assert.Equal(t, "https://example.com", cfg.Mail.FrontendURL)
 		assert.Equal(t, "auto", cfg.Transcoder.Encoder)
+		assert.Equal(t, "http://faces-service:80", cfg.Faces.ServiceURL)
+		assert.Empty(t, cfg.Faces.InternalToken)
+		assert.Equal(t, "http://stream-service:80", cfg.Faces.StreamServiceURL)
 	})
 
 	t.Run("reads from env", func(t *testing.T) {
@@ -35,6 +38,9 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("SMTP_FROM", "no-reply@example.com")
 		t.Setenv("FRONTEND_URL", "https://gocast.example.com")
 		t.Setenv("TRANSCODER_ENCODER", "vaapi")
+		t.Setenv("FACES_SERVICE_URL", "http://faces:8080")
+		t.Setenv("FACES_INTERNAL_TOKEN", "s3cret")
+		t.Setenv("STREAM_SERVICE_URL", "http://stream:8080")
 
 		cfg, err := LoadConfig()
 		require.NoError(t, err)
@@ -46,5 +52,8 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "no-reply@example.com", cfg.Mail.From)
 		assert.Equal(t, "https://gocast.example.com", cfg.Mail.FrontendURL)
 		assert.Equal(t, "vaapi", cfg.Transcoder.Encoder)
+		assert.Equal(t, "http://faces:8080", cfg.Faces.ServiceURL)
+		assert.Equal(t, "s3cret", cfg.Faces.InternalToken)
+		assert.Equal(t, "http://stream:8080", cfg.Faces.StreamServiceURL)
 	})
 }

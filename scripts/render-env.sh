@@ -29,6 +29,7 @@ GRAFANA="${GRAFANA_DOMAIN:-grafana.${DOMAIN}}"
 EVENTS="${EVENTS_DOMAIN:-events.${DOMAIN}}"
 COMMENTS="${COMMENTS_DOMAIN:-comments.${DOMAIN}}"
 STATS="${STATS_DOMAIN:-stats.${DOMAIN}}"
+FACES="${FACES_DOMAIN:-faces.${DOMAIN}}"
 STREAM_SERVICE_URL="${STREAM_SERVICE_URL:-http://stream-service:80}"
 SMTP_ADDR="${SMTP_ADDR:-}"
 SMTP_USER="${SMTP_USER:-}"
@@ -111,6 +112,7 @@ ingress grafana           "${GRAFANA}"      grafana         3000 "/"      grafan
 ingress events-service    "${EVENTS}"       events-reader    8080 "/"      events-tls
 ingress comments-service  "${COMMENTS}"     comments-reader  8080 "/"      comments-tls
 ingress stats-service     "${STATS}"        stats-reader     8080 "/"      stats-tls
+ingress faces-service     "${FACES}"        faces-service    80   "/"      faces-tls
 
 echo "Rendering ConfigMaps from ${ENV_FILE#${ROOT}/} -> ${OUT_DIR}"
 
@@ -168,6 +170,30 @@ cm thumbnail-service-config \
   "WORKER_CONCURRENCY=1" \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \
   "METRICS_ADDR=${METRICS_ADDR}"
+
+cm faces-service-config \
+  "SERVER_ADDR=:8080" \
+  "MODE=release" \
+  "DB_HOST=${DB_HOST}" \
+  "DB_PORT=${DB_PORT}" \
+  "DB_NAME=${FACES_DB_NAME:-faces}" \
+  "MINIO_ENDPOINT=${MINIO_ENDPOINT}" \
+  "MINIO_BUCKET_NAME=${MINIO_BUCKET}" \
+  "MINIO_USE_SSL=${MINIO_USE_SSL}" \
+  "JWT_ACCESS_PUBLIC_KEY_URL=http://identity-service:80/auth/public-key" \
+  "CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS}" \
+  "FACES_MATCH_THRESHOLD=${FACES_MATCH_THRESHOLD:-0.4}" \
+  "FACES_UNKNOWN_THRESHOLD=${FACES_UNKNOWN_THRESHOLD:-0.5}" \
+  "FACES_MAX_FRAMES=${FACES_MAX_FRAMES:-2000}" \
+  "FACES_DETECT_THRESHOLD=${FACES_DETECT_THRESHOLD:-0.4}"
+
+cm faces-worker-config \
+  "WORKER_CONCURRENCY=1" \
+  "WORKER_SHUTDOWN_TIMEOUT=50m" \
+  "METRICS_ADDR=${METRICS_ADDR}" \
+  "REDIS_DB=2" \
+  "FACES_SERVICE_URL=http://faces-service:80" \
+  "STREAM_SERVICE_URL=${STREAM_SERVICE_URL}"
 
 cm mailer-service-config \
   "REDIS_ADDR=${REDIS_ADDR}" \

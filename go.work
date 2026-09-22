@@ -4,6 +4,7 @@ use (
 	./services/comments-service
 	./services/db-migrate
 	./services/events-service
+	./services/faces-worker
 	./services/identity-service
 	./services/mailer-service
 	./services/shared

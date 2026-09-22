@@ -85,7 +85,7 @@ infra: ensure-namespace
 	make -C $(SERVICES_DIR)/transcoder-service keda-deploy
 	@echo "Apply gRPC mTLS certificates (requires ca-issuer)"
 	kubectl apply -f $(SERVICES_DIR)/identity-service/deploy/k8s/grpc-mtls/grpc-certificates.yaml
-	kubectl -n $(NAMESPACE) wait --for=condition=Ready certificate grpc-identity-tls grpc-stream-tls grpc-thumbnail-tls grpc-transcoder-tls --timeout=120s
+	kubectl -n $(NAMESPACE) wait --for=condition=Ready certificate grpc-identity-tls grpc-stream-tls grpc-thumbnail-tls grpc-transcoder-tls grpc-faces-tls --timeout=120s
 
 apps: ensure-namespace apply-configmaps apply-ingresses
 	@echo "Deploy identity-service"
@@ -127,6 +127,15 @@ apps: ensure-namespace apply-configmaps apply-ingresses
 	kubectl apply -f $(SERVICES_DIR)/stats-service/deploy/k8s/.
 	@echo "Wait stats-reader..."
 	kubectl wait --for=condition=Available deployment/stats-reader -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy faces-service"
+	kubectl apply -f $(SERVICES_DIR)/faces-service/deploy/k8s/.
+	@echo "Wait faces-reader..."
+	kubectl wait --for=condition=Available deployment/faces-reader -n $(NAMESPACE) --timeout=120s
+	@echo "Deploy faces-worker"
+	kubectl apply -f $(SERVICES_DIR)/faces-worker/deploy/k8s/faces-worker/.
+	kubectl apply -f $(SERVICES_DIR)/faces-worker/deploy/k8s/keda/.
+	@echo "Wait faces-worker..."
+	kubectl wait --for=condition=Available deployment/faces-worker -n $(NAMESPACE) --timeout=120s
 	@echo "Deploy web-frontend"
 	kubectl apply -f $(SERVICES_DIR)/web-frontend/k8s/.
 	@echo "Wait web-frontend..."

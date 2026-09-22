@@ -34,7 +34,7 @@ func main() {
 	}
 
 	if *target == "" {
-		log.Fatalf("usage: db-migrate -target=identity|stream|events|comments|stats")
+		log.Fatalf("usage: db-migrate -target=identity|stream|events|comments|stats|faces")
 	}
 
 	var dir, table string
@@ -49,8 +49,10 @@ func main() {
 		dir, table = "migrations/comments", "schema_migrations_comments"
 	case "stats":
 		dir, table = "migrations/stats", "schema_migrations_stats"
+	case "faces":
+		dir, table = "migrations/faces", "schema_migrations_faces"
 	default:
-		log.Fatalf("unknown target %q: must be identity, stream, events, comments or stats", *target)
+		log.Fatalf("unknown target %q: must be identity, stream, events, comments, stats or faces", *target)
 	}
 
 	if err := ensureDatabase(); err != nil {

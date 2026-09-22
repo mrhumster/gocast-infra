@@ -1,7 +1,7 @@
 NAMESPACE := go-app
 SERVICES_DIR := services
 
-.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-traefik apply-prometheus apply-grafana apply-db-migrate infra apps clean status backup restore build-web import-images
+.PHONY: all render ensure-namespace apply-configmaps apply-ingresses apply-traefik apply-prometheus apply-alertmanager apply-grafana apply-db-migrate infra apps clean status backup restore build-web import-images
 
 define LOGO
   ________       _________                  __    ________                __________      .__.__       .___
@@ -13,7 +13,7 @@ define LOGO
 endef
 export LOGO
 
-all: wellcome render infra apply-traefik apply-db-migrate apps apply-prometheus apply-grafana status
+all: wellcome render infra apply-traefik apply-db-migrate apps apply-prometheus apply-alertmanager apply-grafana status
 
 wellcome:
 	@echo "$$LOGO"
@@ -43,6 +43,13 @@ apply-prometheus:
 	@echo "Apply Prometheus (lightweight: pod-discovery via prometheus.io annotations + MinIO)"
 	kubectl apply -f deploy/k8s/prometheus/.
 	@echo "Access: kubectl -n $(NAMESPACE) port-forward svc/prometheus-server 9090:9090"
+
+apply-alertmanager:
+	@echo "Apply Alertmanager (UI/webhook receiver: alerts visible in /web, no email configured)"
+	kubectl apply -f deploy/k8s/alertmanager/.
+	kubectl rollout status deployment/alertmanager -n $(NAMESPACE) --timeout=120s
+	@echo "Alertmanager up. Prometheus -> alerting.alertmanagers dynamic reload not needed (config change only)."
+	@echo "Access: kubectl -n $(NAMESPACE) port-forward svc/alertmanager 9093:9093"
 
 apply-grafana: ensure-namespace apply-configmaps apply-ingresses
 	@echo "Apply Grafana (datasource -> prometheus-server, provisioned GoCast dashboards)"

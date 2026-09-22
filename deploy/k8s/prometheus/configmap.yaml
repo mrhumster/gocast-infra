@@ -10,6 +10,15 @@ data:
       scrape_timeout: 10s
       evaluation_interval: 30s
 
+    # Алерты: доставка через Alertmanager (deploy/k8s/alertmanager/).
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ['alertmanager:9093']
+
+    rule_files:
+      - 'rules.yml'
+
     scrape_configs:
       - job_name: 'prometheus'
         static_configs:
@@ -61,3 +70,124 @@ data:
           - targets: ['minio.go-app.svc.cluster.local:9000']
             labels:
               job: minio
+
+  rules.yml: |
+    groups:
+      - name: gocast-platform.rules
+        rules:
+          # Инфра: сервис недоступен для скрейпа более 3 минут.
+          - alert: GoCastTargetDown
+            expr: |
+              up == 0
+            for: 3m
+            labels:
+              severity: warning
+              namespace: go-app
+            annotations:
+              summary: "Scrape target {{ $labels.job }}/{{ $labels.instance }} is down"
+              description: "Target {{ $labels.job }} (instance {{ $labels.instance }}, pod {{ $labels.pod }}) has been unreachable for over 3 minutes."
+
+          # Платформа: падение Prometheus-сервера, который сам себя наблюдал бы.
+          - alert: GoCastPrometheusDown
+            expr: up{job="prometheus"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Prometheus itself is down"
+
+          # Платформа: конфиг Прометея не загрузился (правила/скрейпы битые).
+          - alert: GoCastPrometheusConfigFailed
+            expr: prometheus_config_last_reload_successful == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Prometheus config reload failed"
+              description: "Last config/rule reload failed. Check [[--config.file]] and rule syntax."
+
+          # REST: аномальная доля 5xx (у любого REST-сервиса).
+          - alert: GoCastHigh5xxRate
+            expr: |
+              sum(rate(http_requests_total{namespace="go-app", status=~"5.."}[5m])) by (job)
+                / clamp_min(sum(rate(http_requests_total{namespace="go-app"}[5m])) by (job), 1) > 0.05
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "5xx ratio above 5% for {{ $labels.job }}"
+              description: "Job {{ $labels.job }} served more than 5% of 5xx responses over 10 minutes."
+
+          # Безопасность: аномалия "невалидный логин" — возможный брутфорс. Rate limit 30/мин/IP, поэтому порог 5/с.
+          - alert: GoCastLoginBruteforce
+            expr: |
+              sum(rate(identity_login_attempts_total{namespace="go-app", result="invalid"}[5m])) > 5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High rate of invalid login attempts"
+              description: "Invalid login rate is above 5/s for 5 minutes — possible credential stuffing."
+
+          # Безопасность: всплеск HLS 403 — кто-то тыкается в чужие private-стримы.
+          - alert: GoCastHLS403Burst
+            expr: sum(rate(stream_hls_requests_total{namespace="go-app", status="403"}[5m])) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Burst of HLS 403 (access denied)"
+              description: "Rate of denied HLS requests above 10/s — possible private-video probing."
+
+          # Бизнес: rate limit срабатывает дольше 5 минут — вероятны брутфорс или флуд.
+          - alert: GoCastRateLimited
+            expr: |
+              sum(rate(http_requests_total{namespace="go-app", status="429"}[5m])) > 10
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Sustained rate-limiting (429)"
+              description: "Clients are being rate limited above 10/s for 5 minutes."
+
+          # Бизнес: транскодер стабильно ошибается — стримы не выходят в ready.
+          - alert: GoCastTranscodeErrors
+            expr: sum(rate(transcoder_errors_total{namespace="go-app"}[15m])) > 0
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Transcoding is failing"
+              description: "Transcoder reported errors over the last 15 minutes — streams may not reach ready."
+
+          # Инфра: растёт очередь asynq (неразобранные задачи в Redis).
+          - alert: GoCastAsynqQueueGrowing
+            expr: |
+              sum(rate(asynq_task_processed_total{status="error"}[5m])) > 0
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Asynq tasks are repeatedly failing"
+              description: "Asynq worker reports task errors — check worker logs and Redis."
+
+          # Платформа: Alertmanager недоступен (алерты не доставляются).
+          - alert: GoCastAlertmanagerDown
+            expr: up{job="go-app-pods", app="alertmanager"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Alertmanager is down"
+              description: "Alertmanager target is unreachable — alert delivery is degraded."
+
+          # Storage: место в бакете кончается.
+          - alert: GoCastMinioStorageHigh
+            expr: |
+              (sum(bucket_usage_size{job="minio"}) / (sum(bucket_usage_size{job="minio"}) + sum(minio_cluster_capacity_usable_free_bytes{job="minio"}))) > 0.8
+            for: 15m
+            labels:
+              severity: warning
+            annotations:
+              summary: "MinIO storage usage above 80%"
+              description: "MinIO is more than 80% full — consider offloading/cleanup."

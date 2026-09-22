@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: go-app
+data:
+  alertmanager.yml: |
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: 'default'
+    # Без неитов: алерты видны в UI Alertmanager (/web) и в Prometheus -> Alertmanager.
+    # Добавить email/webhook/slack — добавить receiver ниже и receiver в route.
+    receivers:
+      - name: 'default'

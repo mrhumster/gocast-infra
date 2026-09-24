@@ -3,7 +3,7 @@
   "title": "GoCast — Workers (asynq)",
   "tags": ["gocast"],
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "refresh": "10s",
   "time": { "from": "now-30m", "to": "now" },
@@ -72,7 +72,7 @@
       "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
       "targets": [
         {
-          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*|mailer-.*|events-worker-.*\"})",
+          "expr": "sum(up{namespace=\"$namespace\", pod=~\"thumbnail-.*|transcoder-.*|mailer-.*|events-worker-.*|faces-worker-.*\"})",
           "legendFormat": "workers up",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
@@ -220,6 +220,134 @@
         {
           "expr": "sum(events_recorded_total{namespace=\"$namespace\"})",
           "legendFormat": "events",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Faces sessions total",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(faces_sessions_total{namespace=\"$namespace\"})",
+          "legendFormat": "sessions",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Faces frames total",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(faces_frames_total{namespace=\"$namespace\"})",
+          "legendFormat": "frames",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "Faces task errors",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 0 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(increase(asynq_task_processed_total{namespace=\"$namespace\", task=~\"video:faces|faces:stream.deleted\", status=\"error\"}[$__range]))",
+          "legendFormat": "errors",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Faces worker up",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 34 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 2 }] } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(up{namespace=\"$namespace\", pod=~\"faces-worker-.*\"})",
+          "legendFormat": "workers up",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "timeseries",
+      "title": "Faces processing rate",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (task, status) (rate(asynq_task_processed_total{namespace=\"$namespace\", task=~\"video:faces|faces:stream.deleted\"}[5m]))",
+          "legendFormat": "{{task}} — {{status}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "timeseries",
+      "title": "Faces in flight",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum by (task) (asynq_task_inflight{namespace=\"$namespace\", task=~\"video:faces|faces:stream.deleted\"})",
+          "legendFormat": "{{task}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "Faces session duration p95",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, step) (rate(faces_duration_seconds_bucket{namespace=\"$namespace\"}[5m])))",
+          "legendFormat": "{{step}}",
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "timeseries",
+      "title": "Faces asynq duration p95",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never" } }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, task) (rate(asynq_task_duration_seconds_bucket{namespace=\"$namespace\", task=~\"video:faces|faces:stream.deleted\"}[5m])))",
+          "legendFormat": "{{task}}",
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "prometheus" }
         }

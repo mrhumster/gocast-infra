@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,8 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "http://faces-service:80", cfg.Faces.ServiceURL)
 		assert.Empty(t, cfg.Faces.InternalToken)
 		assert.Equal(t, "http://stream-service:80", cfg.Faces.StreamServiceURL)
+		assert.Equal(t, 600*time.Second, cfg.Faces.InferTimeout)
+		assert.Equal(t, 30*time.Second, cfg.Worker.RetryDelay)
 	})
 
 	t.Run("reads from env", func(t *testing.T) {
@@ -41,6 +44,8 @@ func TestLoadConfig(t *testing.T) {
 		t.Setenv("FACES_SERVICE_URL", "http://faces:8080")
 		t.Setenv("FACES_INTERNAL_TOKEN", "s3cret")
 		t.Setenv("STREAM_SERVICE_URL", "http://stream:8080")
+		t.Setenv("FACES_INFER_TIMEOUT", "10m")
+		t.Setenv("WORKER_RETRY_DELAY", "15s")
 
 		cfg, err := LoadConfig()
 		require.NoError(t, err)
@@ -55,5 +60,7 @@ func TestLoadConfig(t *testing.T) {
 		assert.Equal(t, "http://faces:8080", cfg.Faces.ServiceURL)
 		assert.Equal(t, "s3cret", cfg.Faces.InternalToken)
 		assert.Equal(t, "http://stream:8080", cfg.Faces.StreamServiceURL)
+		assert.Equal(t, 10*time.Minute, cfg.Faces.InferTimeout)
+		assert.Equal(t, 15*time.Second, cfg.Worker.RetryDelay)
 	})
 }

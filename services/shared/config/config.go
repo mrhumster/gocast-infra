@@ -24,6 +24,7 @@ type Faces struct {
 	ServiceURL      string // FACES_SERVICE_URL, e.g. http://faces-service:80
 	InternalToken   string // FACES_INTERNAL_TOKEN, shared secret for POST /infer
 	StreamServiceURL string // STREAM_SERVICE_URL, e.g. http://stream-service:80
+	InferTimeout    time.Duration // FACES_INFER_TIMEOUT, HTTP timeout for POST /infer
 }
 
 // Transcoder configures the video transcode path of a worker service.
@@ -35,6 +36,7 @@ type Transcoder struct {
 type Worker struct {
 	Concurrency     int
 	ShutdownTimeout time.Duration
+	RetryDelay      time.Duration
 }
 
 type Server struct {
@@ -94,6 +96,18 @@ func LoadConfig() (*Config, error) {
 		shutdownTimeout = 50 * time.Minute
 	}
 
+	inferTimeout, err := time.ParseDuration(getEnv("FACES_INFER_TIMEOUT", "600s"))
+	if err != nil {
+		slog.Error("Faces infer timeout from config parse failed. The default value is `600s`")
+		inferTimeout = 600 * time.Second
+	}
+
+	retryDelay, err := time.ParseDuration(getEnv("WORKER_RETRY_DELAY", "30s"))
+	if err != nil {
+		slog.Error("Worker retry delay from config parse failed. The default value is `30s`")
+		retryDelay = 30 * time.Second
+	}
+
 	return &Config{
 		Redis: Redis{
 			Addr:     getEnv("REDIS_ADDR", "localhost"),
@@ -119,6 +133,7 @@ func LoadConfig() (*Config, error) {
 		Worker: Worker{
 			Concurrency:     int(concurrency),
 			ShutdownTimeout: shutdownTimeout,
+			RetryDelay:      retryDelay,
 		},
 		Mail: Mail{
 			SenderAddr:  getEnv("SMTP_ADDR", ""),
@@ -134,6 +149,7 @@ func LoadConfig() (*Config, error) {
 			ServiceURL:       getEnv("FACES_SERVICE_URL", "http://faces-service:80"),
 			InternalToken:    getEnv("FACES_INTERNAL_TOKEN", ""),
 			StreamServiceURL: getEnv("STREAM_SERVICE_URL", "http://stream-service:80"),
+			InferTimeout:     inferTimeout,
 		},
 	}, nil
 }

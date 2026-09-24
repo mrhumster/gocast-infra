@@ -35,6 +35,7 @@ type Options struct {
 	Queues          map[string]int // Asynq queue -> priority map
 	ErrorReporter   ErrorReporter  // Optional; default no-op
 	MetricsAddr     string         // Optional; if set, expose Prometheus /metrics on this addr
+	RetryDelay      time.Duration  // Optional; fixed delay between retries (0 = asynq default exponential backoff)
 }
 
 // NewAsynqServer builds an *asynq.Server, first verifying Redis
@@ -64,6 +65,12 @@ func NewAsynqServer(o Options) (*asynq.Server, error) {
 		Concurrency:     o.Concurrency,
 		ShutdownTimeout: o.ShutdownTimeout,
 		Queues:          o.Queues,
+		RetryDelayFunc: func(n int, err error, t *asynq.Task) time.Duration {
+			if o.RetryDelay > 0 {
+				return o.RetryDelay
+			}
+			return asynq.DefaultRetryDelayFunc(n, err, t)
+		},
 		ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
 			reporter(ctx, task, err)
 		}),

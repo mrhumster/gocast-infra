@@ -166,6 +166,20 @@ cm transcoder-service-config \
   "METRICS_ADDR=${METRICS_ADDR}" \
   "TRANSCODER_ENCODER=${TRANSCODER_ENCODER:-auto}"
 
+# Export worker: separate Redis DB from the transcode worker so a long export
+# cannot queue behind a transcode, and it is the only transcoder process that
+# gets SMTP credentials (it enqueues the "download ready" mail).
+cm transcoder-exporter-config \
+  "WORKER_CONCURRENCY=1" \
+  "WORKER_SHUTDOWN_TIMEOUT=${EXPORT_WORKER_SHUTDOWN_TIMEOUT:-30m}" \
+  "METRICS_ADDR=${METRICS_ADDR}" \
+  "REDIS_DB=${EXPORT_QUEUE_DB:-4}" \
+  "MAILER_REDIS_DB=2" \
+  "SMTP_ADDR=${SMTP_ADDR}" \
+  "SMTP_USER=${SMTP_USER}" \
+  "SMTP_FROM=${SMTP_FROM}" \
+  "FRONTEND_URL=${FRONTEND_URL}"
+
 cm thumbnail-service-config \
   "WORKER_CONCURRENCY=1" \
   "WORKER_SHUTDOWN_TIMEOUT=50m" \

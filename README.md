@@ -172,8 +172,10 @@ Upload → transcode → HLS, with two optional branches. MinIO keys are shown a
 
 The database split keeps noisy neighbours apart: transcodes cannot starve the mailer, the export
 mux cannot starve a transcode, and activity events are a separate logical database. Queues within
-one database do share it, so `WORKER_RETRY_DELAY` (default 30s) is a fixed pause between attempts
-on all workers rather than the asynq default exponential backoff.
+one database do share it. `WORKER_RETRY_DELAY` (default 30s) only takes effect where a worker
+actually passes it into `sharedworker.Options` — today that is `faces-worker` alone; the
+transcoder, thumbnail, mailer, events and identity workers all fall back to the asynq default
+exponential backoff.
 
 ## Prerequisites
 

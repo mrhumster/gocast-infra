@@ -24,7 +24,10 @@ CREATE TABLE IF NOT EXISTS stream_exports (
 CREATE INDEX IF NOT EXISTS idx_stream_exports_deleted_at ON stream_exports (deleted_at);
 CREATE INDEX IF NOT EXISTS idx_stream_exports_user_id ON stream_exports (user_id);
 
--- One live export per stream; soft-deleted rows are kept as history and do not
--- block a fresh export.
+-- One live export per stream. Soft-deleted rows are kept as history and do
+-- not block a fresh export.
+-- Beware: db-migrate runs with MultiStatementEnabled, which splits this file
+-- on a bare semicolon without understanding comments. A semicolon inside a
+-- comment line makes the rest of the comment arrive at postgres as SQL.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_stream_exports_stream_id
     ON stream_exports (stream_id) WHERE deleted_at IS NULL;

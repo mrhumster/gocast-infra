@@ -26,6 +26,7 @@ func main() {
 	fsSet := flag.NewFlagSet("db-migrate", flag.ExitOnError)
 	target := fsSet.String("target", "", "migration target: identity|stream")
 	showVersion := fsSet.Bool("version", false, "print version and exit")
+	forceTo := fsSet.Int("force", -1, "record this version and clear the dirty flag, then exit (recovery only)")
 	_ = fsSet.Parse(os.Args[1:])
 
 	if *showVersion {
@@ -64,6 +65,23 @@ func main() {
 		log.Fatalf("init migrate: %v", err)
 	}
 	defer m.Close()
+
+	// A migration that fails halfway leaves the version recorded and dirty,
+	// and golang-migrate then refuses to move at all. Forcing the last known
+	// good version is the documented way out; the migrations here are written
+	// to be re-runnable (IF NOT EXISTS throughout), so the next up finishes
+	// whatever the failed run left behind.
+	if *forceTo >= 0 {
+		if err := m.Force(*forceTo); err != nil {
+			log.Fatalf("force to version %d failed: %v", *forceTo, err)
+		}
+		ver, dirty, err := m.Version()
+		if err != nil {
+			log.Fatalf("force to version %d: read back: %v", *forceTo, err)
+		}
+		log.Printf("target=%s forced to version=%d dirty=%v", *target, ver, dirty)
+		return
+	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		log.Fatalf("migrate up failed: %v", err)
